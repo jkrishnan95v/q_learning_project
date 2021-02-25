@@ -26,6 +26,7 @@ epsilon = 0.9
 EPS_DECAY = 0.9998
 SHOW_EVERY = 3000
 
+#start_q_table = None
 start_q_table = "qtable-1614277975.pickle" #We can load a previously trained q table
 
 LEARING_RATE = 0.1
