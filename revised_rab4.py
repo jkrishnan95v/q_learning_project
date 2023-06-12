@@ -449,8 +449,7 @@ for i in range(num_iterations):
     experience, _ = next(iterator)
     train_loss = agent.train(experience=experience)
     step = agent.train_step_counter.numpy()
-    if i == 198:
-        a = 1
+    
     
     print('Completed epsiode number', i)
     if step % log_interval == 0:
