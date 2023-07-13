@@ -25,13 +25,13 @@ from PIL import Image
 #import cv2
 
 
-REPLAY_MEMORY_SIZE = 50_000
-MIN_REPLAY_MEMORY_SIZE = 1_000
-MODEL_NAME = "frog1_5k_ep"
+REPLAY_MEMORY_SIZE = 50_0
+MIN_REPLAY_MEMORY_SIZE = 1_00
+MODEL_NAME = "new_rewards_0.10"
 
 DISCOUNT = 0.99
-REPLAY_MEMORY_SIZE = 50_000  # How many last steps to keep for model training
-MIN_REPLAY_MEMORY_SIZE = 1_000  # Minimum number of steps in a memory to start training
+#REPLAY_MEMORY_SIZE = 50_000  # How many last steps to keep for model training
+#MIN_REPLAY_MEMORY_SIZE = 1_000  # Minimum number of steps in a memory to start training
 MINIBATCH_SIZE = 64  # How many steps (samples) to use for training
 UPDATE_TARGET_EVERY = 5  # Terminal states (end of episodes)
 
@@ -40,7 +40,7 @@ MEMORY_FRACTION = 0.20
 
 
 # Environment settings
-EPISODES = 5_000#20_000
+EPISODES = 300#10_00#20_000
 
 # Exploration settings
 epsilon = 1  # not a constant, going to be decayed
@@ -48,7 +48,7 @@ EPSILON_DECAY = 0.99975
 MIN_EPSILON = 0.001
 
 #  Stats settings
-AGGREGATE_STATS_EVERY = 50  # episodes
+AGGREGATE_STATS_EVERY = 10  # episodes
 SHOW_PREVIEW = False
 
 
@@ -150,12 +150,12 @@ class DQNAgent:
         minibatch = random.sample(self.replay_memory, MINIBATCH_SIZE)
 
         # Get current states from minibatch, then query NN model for Q values
-        current_states = np.array([transition[0] for transition in minibatch])/150
+        current_states = np.array([transition[0] for transition in minibatch])/165
         current_qs_list = self.model.predict(current_states)
 
         # Get future states from minibatch, then query NN model for Q values
         # When using target network, query it, otherwise main network should be queried
-        new_current_states = np.array([transition[3] for transition in minibatch])/150
+        new_current_states = np.array([transition[3] for transition in minibatch])/165
         future_qs_list = self.target_model.predict(new_current_states)
 
         X = []
@@ -181,7 +181,7 @@ class DQNAgent:
             y.append(current_qs)
 
         # Fit on all samples as one batch, log only on terminal state
-        self.model.fit(np.array(X)/150, np.array(y), batch_size=MINIBATCH_SIZE, verbose=0, shuffle=False, callbacks=[self.tensorboard] if terminal_state else None)
+        self.model.fit(np.array(X)/165, np.array(y), batch_size=MINIBATCH_SIZE, verbose=0, shuffle=False, callbacks=[self.tensorboard] if terminal_state else None)
 
         # Update target network counter every episode
         if terminal_state:
@@ -194,7 +194,7 @@ class DQNAgent:
 
     # Queries main network for Q values given current observation space (environment state)
     def get_qs(self, state):
-        return self.model.predict(np.expand_dims(np.array(state, dtype=np.float32), 0)/150)[0]#Size needs to be fized
+        return self.model.predict(np.expand_dims(np.array(state, dtype=np.float32), 0)/165)[0]#Size needs to be fized
 
 
 class Beamer:
@@ -340,15 +340,15 @@ class BeamEnv:
     #DEVIATION_FACTOR = 0.5                                       #Uncertainty in randomness of nonuniform sensor spacing(add later)
     SNAPSHOTS_PER_REALIZATION = 256                               #Snapshots per iteration, increase this to improve accuracy of BER 
     NUMBER_OF_SOURCES = 1                                         #Number of sources
-    SPECTRUM_WIDTH = 60
+    SPECTRUM_WIDTH = 75
     SIZE = 3#Not sure what this is
     OBSERVATION_SPACE_VALUES = (SIZE, 1)
     ACTION_SPACE_SIZE = 31
 
     MOVE_PENALTY = 1
-    ENEMY_PENALTY = 100
-    FOOD_REWARD = 500
-    SECTOR_REWARD = 250
+    ENEMY_PENALTY = 10#div by 10
+    FOOD_REWARD = 20
+    SECTOR_REWARD = 2
 
     lower_bound = -60
     upper_bound = 60
@@ -357,12 +357,12 @@ class BeamEnv:
 
     number_of_sector = abs(lower_bound) + abs(upper_bound) / HPBW
 
-    sector_1 = np.linspace(-60,-30,31)
-    sector_2 = np.linspace(-29,0,30)
-    sector_3 = np.linspace(1,30,30)
-    sector_4 = np.linspace(31,60,30)
-      
-
+    sector_1 = np.linspace(-75,-50,26)
+    sector_2 = np.linspace(-49,-25,25)
+    sector_3 = np.linspace(-24,0,25)
+    sector_4 = np.linspace(1,25,25)
+    sector_5 = np.linspace(26,50,25)  
+    sector_6 = np.linspace(51,75,25)
 
     lower_bound_2 = -180 # For beam patterns to get max 
     upper_bound_2 = 180
@@ -386,22 +386,26 @@ class BeamEnv:
         self.player = Beamer(self)
         self.theta_M = np.random.randint(BeamEnv.lower_bound, BeamEnv.upper_bound)
         if self.theta_M > 0:
-            if self.theta_M/60 > 0.5:
-                self.M_sector = 4
+            if self.theta_M > 50:
+                self.M_sector = 6
+            elif self.theta_M > 25:
+                self.M_sector = 5
             else:
-                self.M_sector = 3
+                self.M_sector = 4
             
         else:
-            if abs(self.theta_M)/60 > 0.5:
+            if abs(self.theta_M) > 50:
                 self.M_sector = 1
-            else:
+            elif abs(self.theta_M) > 25:
                 self.M_sector = 2
+            else:
+                self.M_sector = 3
         
-        
-    
-        
-        self.theta_J = np.random.randint(self.lower_bound, self.upper_bound) #This is jammer theta
-        
+        while True:    
+            self.theta_J = np.random.randint(self.lower_bound, self.upper_bound) #This is jammer theta
+            if self.theta_J != self.theta_M:
+                break
+            
         w_shifters = ([np.exp(1j*(self.player.p1)*np.pi/180), np.exp(1j*(self.player.p2)*np.pi/180), np.exp(1j*(self.player.p3)*np.pi/180), np.exp(1j*(self.player.p4)*np.pi/180)])/np.sqrt(self.NUMBER_OF_SENSORS)
         
     
@@ -420,16 +424,20 @@ class BeamEnv:
         d = kk[0][0]
         self.theta_B = self.spectrum_resolution[c + np.argmax(self.B[c:d])]
         if self.theta_B > 0:
-            if self.theta_B/60 > 0.5:
-                self.B_sector = 4
+            if self.theta_B > 50:
+                self.B_sector = 6
+            elif self.theta_B > 25:
+                self.B_sector = 5
             else:
-                self.B_sector = 3
+                self.B_sector = 4
             
         else:
-            if abs(self.theta_B)/60 > 0.5:
+            if abs(self.theta_B) > 50:
                 self.B_sector = 1
-            else:
+            elif abs(self.theta_B) > 25:
                 self.B_sector = 2
+            else:
+                self.B_sector = 3
                 
         observation = (self.theta_B+90,self.theta_M+90,self.theta_J+90)
         
@@ -520,7 +528,7 @@ for episode in tqdm(range(1, EPISODES + 1), ascii=True, unit='episodes'):
         # Every step we update replay memory and train main network
         agent.update_replay_memory((current_state, action, reward, new_state, done))
         agent.train(done, step)
-
+ 
         current_state = new_state
         step += 1
 
